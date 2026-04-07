@@ -1,12 +1,12 @@
 /*
  * baseline_migrate.c
- * Week 2 里程碑：基线冷页迁移
- * - 在 node 0 分配内存，模拟"冷"页
- * - 用 move_pages() 迁移到 node 2 (CXL)
- * - 验证迁移前后的节点归属
+ * Week 2 milestone: baseline cold-page migration
+ * - Allocate memory on node 0, simulate "cold" pages
+ * - Use move_pages() to migrate to node 2 (CXL)
+ * - Verify node membership before and after migration
  *
- * 编译: gcc -O2 -o baseline_migrate baseline_migrate.c -lnuma
- * 运行: numactl --cpunodebind=0 ./baseline_migrate
+ * Compile: gcc -O2 -o baseline_migrate baseline_migrate.c -lnuma
+ * Run: numactl --cpunodebind=0 ./baseline_migrate
  */
 
 #define _GNU_SOURCE
@@ -21,10 +21,10 @@
 
 #define DRAM_NODE  0
 #define CXL_NODE   2
-#define N_PAGES    1024          /* 迁移 1024 个 4KB 页 = 4 MB */
+#define N_PAGES    1024          /* migrate 1024 4KB pages = 4 MB */
 #define PAGE_SIZE  4096
 
-/* 获取一组虚拟地址的当前 NUMA node */
+/* Get the current NUMA node for a set of virtual addresses */
 static void print_page_nodes(void **pages, int *status, int n, const char *label)
 {
     int ret = move_pages(0, n, pages, NULL, status, 0);
@@ -54,7 +54,7 @@ int main(void)
     printf("=== Baseline Page Migration: node %d (DRAM) -> node %d (CXL) ===\n\n",
            DRAM_NODE, CXL_NODE);
 
-    /* 1. 在 DRAM 节点分配内存 */
+    /* 1. Allocate memory on the DRAM node */
     size_t total = (size_t)N_PAGES * PAGE_SIZE;
     char *buf = (char *)numa_alloc_onnode(total, DRAM_NODE);
     if (!buf) {
@@ -62,34 +62,34 @@ int main(void)
         return 1;
     }
 
-    /* touch 每一页，确保物理页已分配 */
+    /* touch each page to ensure physical pages are allocated */
     for (int i = 0; i < N_PAGES; i++)
         buf[i * PAGE_SIZE] = (char)i;
 
-    /* 2. 构建页地址数组 */
+    /* 2. Build page address array */
     void **pages  = malloc(N_PAGES * sizeof(void *));
     int  *nodes   = malloc(N_PAGES * sizeof(int));
     int  *status  = malloc(N_PAGES * sizeof(int));
 
     for (int i = 0; i < N_PAGES; i++) {
         pages[i] = buf + (size_t)i * PAGE_SIZE;
-        nodes[i] = CXL_NODE;  /* 目标：迁到 CXL node */
+        nodes[i] = CXL_NODE;  /* target: migrate to CXL node */
     }
 
-    /* 3. 迁移前：确认在 DRAM */
+    /* 3. Before migration: confirm pages are on DRAM */
     print_page_nodes(pages, status, N_PAGES, "Before migration");
 
-    /* 4. move_pages 迁移 */
+    /* 4. Migrate with move_pages */
     int ret = move_pages(0, N_PAGES, pages, nodes, status, MPOL_MF_MOVE);
     if (ret != 0) {
         perror("move_pages(migrate)");
-        /* 非致命：部分页可能失败，继续看结果 */
+        /* non-fatal: some pages may fail, continue to check results */
     }
 
-    /* 5. 迁移后：确认在 CXL */
+    /* 5. After migration: confirm pages are on CXL */
     print_page_nodes(pages, status, N_PAGES, "After  migration");
 
-    /* 统计迁移成功率 */
+    /* Count migration success rate */
     int migrated = 0, failed = 0;
     for (int i = 0; i < N_PAGES; i++) {
         if (status[i] == CXL_NODE) migrated++;
@@ -98,7 +98,7 @@ int main(void)
     printf("\nMigration success: %d/%d pages (%.1f%%)\n",
            migrated, N_PAGES, 100.0 * migrated / N_PAGES);
 
-    /* 6. 迁回 DRAM（演示双向迁移） */
+    /* 6. Migrate back to DRAM (demonstrate bidirectional migration) */
     for (int i = 0; i < N_PAGES; i++)
         nodes[i] = DRAM_NODE;
     ret = move_pages(0, N_PAGES, pages, nodes, status, MPOL_MF_MOVE);

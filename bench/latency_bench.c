@@ -1,8 +1,8 @@
 /*
  * latency_bench.c
- * 验证 NUMA node 0 (DRAM) vs node 2 (CXL-emulated) 的访问延迟差异
- * 编译: gcc -O2 -o latency_bench latency_bench.c -lnuma
- * 运行: numactl --cpunodebind=0 ./latency_bench
+ * Verify access latency difference between NUMA node 0 (DRAM) and node 2 (CXL-emulated)
+ * Compile: gcc -O2 -o latency_bench latency_bench.c -lnuma
+ * Run: numactl --cpunodebind=0 ./latency_bench
  */
 
 #define _GNU_SOURCE
@@ -15,8 +15,8 @@
 #include <numa.h>
 #include <numaif.h>
 
-#define BUF_SIZE   (256 * 1024 * 1024)  /* 256 MB, 超过 LLC 大小 */
-#define STRIDE     (4096)                /* 4KB, 跨 page 访问 */
+#define BUF_SIZE   (256 * 1024 * 1024)  /* 256 MB, exceeds LLC size */
+#define STRIDE     (4096)                /* 4KB, cross-page access */
 #define ITERATIONS (10000000)
 
 static uint64_t rdtsc(void)
@@ -33,7 +33,7 @@ static double measure_latency(void *buf, size_t size, int iters)
     uint64_t start, end;
     long sum = 0;
 
-    /* 先 warm-up (但超过 LLC，会 miss) */
+    /* warm-up first (but exceeds LLC, will miss) */
     for (size_t i = 0; i < n_pages; i++)
         p[i * STRIDE] = (char)i;
 
