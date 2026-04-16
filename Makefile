@@ -2,7 +2,7 @@ CC      = gcc
 CFLAGS  = -O2 -Wall -g
 LDFLAGS = -lnuma
 
-TARGETS = bench/latency_bench migrate/baseline_migrate
+TARGETS = bench/latency_bench migrate/baseline_migrate migrate/color_migrate
 
 all: $(TARGETS)
 
@@ -10,6 +10,9 @@ bench/latency_bench: bench/latency_bench.c
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
 migrate/baseline_migrate: migrate/baseline_migrate.c
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+
+migrate/color_migrate: migrate/color_migrate.c
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
 clean:
@@ -34,4 +37,10 @@ run-latency: bench/latency_bench
 run-migrate: migrate/baseline_migrate
 	numactl --cpunodebind=0 ./migrate/baseline_migrate
 
-.PHONY: all clean check run-latency run-migrate
+run-color-migrate: migrate/color_migrate
+	numactl --cpunodebind=0 ./migrate/color_migrate
+
+run-color-migrate-root: migrate/color_migrate
+	sudo numactl --cpunodebind=0 ./migrate/color_migrate
+
+.PHONY: all clean check run-latency run-migrate run-color-migrate run-color-migrate-root
