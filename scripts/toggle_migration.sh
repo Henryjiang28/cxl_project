@@ -13,13 +13,13 @@ fi
 case "$1" in
     1)
         sudo swapoff -a
-        echo 1 | sudo tee /sys/kernel/mm/numa/demotion_enabled >/dev/null
-        echo 1 | sudo tee /proc/sys/kernel/numa_balancing >/dev/null
+        echo 1 | sudo tee /sys/kernel/mm/numa/demotion_enabled
+        echo 1 | sudo tee /proc/sys/kernel/numa_balancing
         echo "Migration enabled"
         ;;
     0)
-        echo 0 | sudo tee /sys/kernel/mm/numa/demotion_enabled >/dev/null
-        echo 0 | sudo tee /proc/sys/kernel/numa_balancing >/dev/null
+        echo 0 | sudo tee /sys/kernel/mm/numa/demotion_enabled
+        echo 0 | sudo tee /proc/sys/kernel/numa_balancing
         echo "Migration disabled"
         ;;
     *)
