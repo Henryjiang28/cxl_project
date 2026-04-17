@@ -1,3 +1,3 @@
 [submodule "workloads/mitosis-workload-btree"]
 	path = workloads/mitosis-workload-btree
-	url = git@github.com:LordDarkula/mitosis-workload-btree.git
+	url = https://github.com/LordDarkula/mitosis-workload-btree.git
