@@ -6,19 +6,19 @@ set -euo pipefail
 #  2) Let the baseline run without injected contention
 
 if [[ $# -ne 3 ]]; then
-  echo "Usage: $0 <kernel_mode> <GiB> <percent_hot>" >&2
-  echo "  kernel_mode must be one of: tpp, colloid" >&2
+  echo "Usage: $0 <migration_mode> <GiB> <percent_hot>" >&2
+  echo "  migration_mode must be 0 or 1" >&2
   echo "  GiB must be a positive integer" >&2
   echo "  percent_hot must be an integer in [0,100]" >&2
   exit 1
 fi
 
-readonly KERNEL_MODE="$1"
+readonly MIGRATION_MODE="$1"
 readonly HOT_COLD_MEM_GIB="$2"
 readonly HOT_COLD_TOUCH_PERCENT="$3"
 
-if [[ "${KERNEL_MODE}" != "tpp" && "${KERNEL_MODE}" != "colloid" ]]; then
-  echo "[error] invalid kernel_mode '${KERNEL_MODE}'. Expected 'tpp' or 'colloid'." >&2
+if [[ "${MIGRATION_MODE}" != "0" && "${MIGRATION_MODE}" != "1" ]]; then
+  echo "[error] invalid migration_mode '${MIGRATION_MODE}'. Expected '0' or '1'." >&2
   exit 1
 fi
 
@@ -70,7 +70,7 @@ write_params_yaml() {
 timestamp: $(yaml_quote "${TIMESTAMP}")
 experiment_dir: $(yaml_quote "${EXP_DIR}")
 csv_out: $(yaml_quote "${CSV_OUT}")
-kernel_mode: $(yaml_quote "${KERNEL_MODE}")
+migration_mode: $(yaml_quote "${MIGRATION_MODE}")
 logdir: $(yaml_quote "${LOGDIR}")
 hot_cold_log: $(yaml_quote "${hc_log}")
 hot_cold_mem_gib: ${HOT_COLD_MEM_GIB}
