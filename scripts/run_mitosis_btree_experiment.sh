@@ -21,7 +21,8 @@ if ! [[ "${LOOKUP_HUNDREDS}" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
-readonly TARGET_NUMA_NODE=1
+readonly TARGET_CPU_NUMA_NODE=0
+readonly TARGET_MEM_NUMA_NODE=1
 readonly ELEMENTS_PER_GIB=8000000
 readonly NUM_ELEMENTS=$(( MEMORY_GIB * ELEMENTS_PER_GIB ))
 readonly NUM_LOOKUPS=$(( LOOKUP_HUNDREDS * 100 ))
@@ -32,7 +33,7 @@ readonly JSON_OUT="${EXP_DIR}/timing.json"
 readonly PARAMS_OUT="${EXP_DIR}/experimental_params.yaml"
 readonly LOGDIR="./exp_logs_${TIMESTAMP}"
 readonly WORKLOAD_BIN="${WORKLOAD_BIN:-./workloads/mitosis-workload-btree/bin/bench_btree_mt}"
-readonly WORKLOAD_CMD="${WORKLOAD_CMD:-${WORKLOAD_BIN} -p ${TARGET_NUMA_NODE} -- -n ${NUM_ELEMENTS} -l ${NUM_LOOKUPS}}"
+readonly WORKLOAD_CMD="${WORKLOAD_CMD:-${WORKLOAD_BIN} -p ${TARGET_CPU_NUMA_NODE} -m {TARGET_MEM_NUMA_NODE} -- -n ${NUM_ELEMENTS} -l ${NUM_LOOKUPS}}"
 readonly SAMPLE_INTERVAL_SECS="${SAMPLE_INTERVAL_SECS:-1}"
 
 mkdir -p "${EXP_DIR}" "${LOGDIR}"
@@ -57,7 +58,8 @@ timestamp: $(yaml_quote "${TIMESTAMP}")
 experiment_dir: $(yaml_quote "${EXP_DIR}")
 numa_csv_out: $(yaml_quote "${CSV_OUT}")
 timing_json_out: $(yaml_quote "${JSON_OUT}")
-target_numa_node: ${TARGET_NUMA_NODE}
+target_cpu_numa_node: ${TARGET_CPU_NUMA_NODE}
+target_mem_numa_node: ${TARGET_MEM_NUMA_NODE}
 memory_gib: ${MEMORY_GIB}
 elements_per_gib: ${ELEMENTS_PER_GIB}
 num_elements: ${NUM_ELEMENTS}
@@ -188,7 +190,7 @@ write_params_yaml
 echo "[info] experiment dir: ${EXP_DIR}"
 echo "[info] logs: ${LOGDIR}"
 echo "[info] params: ${PARAMS_OUT}"
-echo "[info] running on NUMA node ${TARGET_NUMA_NODE}"
+echo "[info] running on NUMA node ${TARGET_CPU_NUMA_NODE}"
 echo "[info] num_elements=${NUM_ELEMENTS} num_lookups=${NUM_LOOKUPS}"
 
 readonly START_EPOCH_SECS="$(date +%s)"
@@ -219,7 +221,8 @@ readonly ELAPSED_REMAINDER_MILLIS=$(( (ELAPSED_NANOS % 1000000000) / 1000000 ))
 cat >"${JSON_OUT}" <<EOF
 {
   "timestamp": "${TIMESTAMP}",
-  "target_numa_node": ${TARGET_NUMA_NODE},
+  "target_cpu_numa_node": "${TARGET_CPU_NUMA_NODE}",
+  "target_mem_numa_node": "${TARGET_MEM_NUMA_NODE}",
   "memory_gib": ${MEMORY_GIB},
   "elements_per_gib": ${ELEMENTS_PER_GIB},
   "num_elements": ${NUM_ELEMENTS},
