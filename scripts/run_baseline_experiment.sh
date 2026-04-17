@@ -5,16 +5,30 @@ set -euo pipefail
 #  1) Start hot_cold
 #  2) Let the baseline run without injected contention
 
-if [[ $# -ne 1 ]]; then
-  echo "Usage: $0 <kernel_mode>" >&2
+if [[ $# -ne 3 ]]; then
+  echo "Usage: $0 <kernel_mode> <GiB> <percent_hot>" >&2
   echo "  kernel_mode must be one of: tpp, colloid" >&2
+  echo "  GiB must be a positive integer" >&2
+  echo "  percent_hot must be an integer in [0,100]" >&2
   exit 1
 fi
 
 readonly KERNEL_MODE="$1"
+readonly HOT_COLD_MEM_GIB="$2"
+readonly HOT_COLD_TOUCH_PERCENT="$3"
 
 if [[ "${KERNEL_MODE}" != "tpp" && "${KERNEL_MODE}" != "colloid" ]]; then
   echo "[error] invalid kernel_mode '${KERNEL_MODE}'. Expected 'tpp' or 'colloid'." >&2
+  exit 1
+fi
+
+if ! [[ "${HOT_COLD_MEM_GIB}" =~ ^[0-9]+$ ]] || (( HOT_COLD_MEM_GIB == 0 )); then
+  echo "[error] invalid GiB '${HOT_COLD_MEM_GIB}'. Expected a positive integer." >&2
+  exit 1
+fi
+
+if ! [[ "${HOT_COLD_TOUCH_PERCENT}" =~ ^[0-9]+$ ]] || (( HOT_COLD_TOUCH_PERCENT < 0 || HOT_COLD_TOUCH_PERCENT > 100 )); then
+  echo "[error] invalid percent_hot '${HOT_COLD_TOUCH_PERCENT}'. Expected an integer in [0,100]." >&2
   exit 1
 fi
 
@@ -28,10 +42,9 @@ mkdir -p "${EXP_DIR}"
 CSV_OUT="${EXP_DIR}/memory_usage.csv"
 PARAMS_OUT="${EXP_DIR}/experimental_params.yaml"
 
-HOT_COLD_BIN="${HOT_COLD_BIN:-./apps/hot_cold/hot_cold}"
-HOT_COLD_MEM_MB="${HOT_COLD_MEM_MB:-16384}"
+HOT_COLD_BIN="${HOT_COLD_BIN:-./workloads/hot_cold/hot_cold}"
+readonly HOT_COLD_MEM_MB=$(( HOT_COLD_MEM_GIB * 1024 ))
 SLOW_NUMA_NODE="${SLOW_NUMA_NODE:-1}"
-HOT_COLD_TOUCH_PERCENT="${HOT_COLD_TOUCH_PERCENT:-25}"
 HOT_COLD_CMD="${HOT_COLD_CMD:-${HOT_COLD_BIN} ${HOT_COLD_MEM_MB} ${SLOW_NUMA_NODE} ${HOT_COLD_TOUCH_PERCENT}}"
 
 BASELINE_DURATION="${BASELINE_DURATION:-60}"
@@ -60,6 +73,7 @@ csv_out: $(yaml_quote "${CSV_OUT}")
 kernel_mode: $(yaml_quote "${KERNEL_MODE}")
 logdir: $(yaml_quote "${LOGDIR}")
 hot_cold_log: $(yaml_quote "${hc_log}")
+hot_cold_mem_gib: ${HOT_COLD_MEM_GIB}
 hot_cold_mem_mb: ${HOT_COLD_MEM_MB}
 slow_numa_node: ${SLOW_NUMA_NODE}
 hot_cold_touch_percent: ${HOT_COLD_TOUCH_PERCENT}
