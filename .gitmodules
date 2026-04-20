@@ -1,3 +1,7 @@
 [submodule "workloads/mitosis-workload-btree"]
 	path = workloads/mitosis-workload-btree
 	url = https://github.com/LordDarkula/mitosis-workload-btree.git
+[submodule "tools/numa_mem_plot"]
+	path = tools/numa_mem_plot
+	url = https://github.com/LordDarkula/numa_mem_plot.git
+	branch = main

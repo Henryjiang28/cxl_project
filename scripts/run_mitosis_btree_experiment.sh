@@ -29,17 +29,21 @@ readonly NUM_LOOKUPS=$(( LOOKUP_HUNDREDS * 100 ))
 readonly TIMESTAMP="$(date +%Y-%m-%d_%H-%M-%S)"
 readonly EXP_DIR="experiments/mitosis_btree_experiment-${TIMESTAMP}"
 readonly CSV_OUT="${EXP_DIR}/numa_memory_usage.csv"
+readonly PLOT_OUT="${EXP_DIR}/numa_memory_usage.png"
 readonly JSON_OUT="${EXP_DIR}/timing.json"
 readonly PARAMS_OUT="${EXP_DIR}/experimental_params.yaml"
 readonly LOGDIR="./exp_logs_${TIMESTAMP}"
 readonly WORKLOAD_BIN="${WORKLOAD_BIN:-./workloads/mitosis-workload-btree/bin/bench_btree_mt}"
 readonly WORKLOAD_CMD="${WORKLOAD_CMD:-${WORKLOAD_BIN} -p ${TARGET_CPU_NUMA_NODE} -m {TARGET_MEM_NUMA_NODE} -- -n ${NUM_ELEMENTS} -l ${NUM_LOOKUPS}}"
+readonly WORKLOAD_PROC_NAME="$(basename "${WORKLOAD_BIN}")"
 readonly SAMPLE_INTERVAL_SECS="${SAMPLE_INTERVAL_SECS:-1}"
+readonly PLOTTER_MAX_DURATION_SECS="${PLOTTER_MAX_DURATION_SECS:-86400}"
+readonly PLOTTER_SRC_DIR="${PLOTTER_SRC_DIR:-./tools/numa_mem_plot/src}"
 
 mkdir -p "${EXP_DIR}" "${LOGDIR}"
 
 readonly WORKLOAD_LOG="${LOGDIR}/bench_btree_mt.log"
-readonly NUMASTAT_LOG="${LOGDIR}/numastat.log"
+readonly PLOTTER_LOG="${LOGDIR}/numa_mem_plot.log"
 
 workload_pid=""
 sampler_pid=""
@@ -57,6 +61,7 @@ write_params_yaml() {
 timestamp: $(yaml_quote "${TIMESTAMP}")
 experiment_dir: $(yaml_quote "${EXP_DIR}")
 numa_csv_out: $(yaml_quote "${CSV_OUT}")
+numa_plot_out: $(yaml_quote "${PLOT_OUT}")
 timing_json_out: $(yaml_quote "${JSON_OUT}")
 target_cpu_numa_node: ${TARGET_CPU_NUMA_NODE}
 target_mem_numa_node: ${TARGET_MEM_NUMA_NODE}
@@ -66,10 +71,13 @@ num_elements: ${NUM_ELEMENTS}
 lookup_hundreds: ${LOOKUP_HUNDREDS}
 num_lookups: ${NUM_LOOKUPS}
 sample_interval_secs: ${SAMPLE_INTERVAL_SECS}
+plotter_max_duration_secs: ${PLOTTER_MAX_DURATION_SECS}
+workload_proc_name: $(yaml_quote "${WORKLOAD_PROC_NAME}")
+plotter_src_dir: $(yaml_quote "${PLOTTER_SRC_DIR}")
 workload_bin: $(yaml_quote "${WORKLOAD_BIN}")
 workload_cmd: $(yaml_quote "${WORKLOAD_CMD}")
 workload_log: $(yaml_quote "${WORKLOAD_LOG}")
-numastat_log: $(yaml_quote "${NUMASTAT_LOG}")
+plotter_log: $(yaml_quote "${PLOTTER_LOG}")
 EOF
 }
 
@@ -91,98 +99,37 @@ if ! command -v numastat >/dev/null 2>&1; then
   exit 1
 fi
 
-capture_numastat_sample() {
-  local elapsed_secs="$1"
-  local numastat_output
-  local parsed_output
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "[error] python3 is not installed or not in PATH." >&2
+  echo "[error] install dependencies first, for example: scripts/install_dependencies.sh" >&2
+  exit 1
+fi
 
-  if ! numastat_output="$(numastat -m 2>>"${NUMASTAT_LOG}")"; then
-    echo "[warn] numastat sampling failed at t=${elapsed_secs}s" >>"${NUMASTAT_LOG}"
-    return
-  fi
+if [[ ! -f "${PLOTTER_SRC_DIR}/numa_mem_plot/__main__.py" ]]; then
+  echo "[error] numa_mem_plot module not found at '${PLOTTER_SRC_DIR}'." >&2
+  echo "[error] initialize submodules first, for example: git submodule update --init --recursive" >&2
+  exit 1
+fi
 
-  parsed_output="$(
-    printf '%s\n' "${numastat_output}" | awk -v elapsed="${elapsed_secs}" '
-      BEGIN {
-        node_count = 0;
-      }
-      /^Per-node system memory usage/ {
-        in_table = 1;
-        next;
-      }
-      !in_table {
-        next;
-      }
-      /^$/ {
-        next;
-      }
-      /^-/ {
-        next;
-      }
-      {
-        if ($1 == "Node") {
-          node_count = 0;
-          for (i = 2; i <= NF; i++) {
-            if ($i == "Total") {
-              break;
-            }
-            nodes[node_count] = $i;
-            node_count++;
-          }
-          next;
-        }
+if ! python3 -c 'import matplotlib' >/dev/null 2>&1; then
+  echo "[error] python3 matplotlib is not installed." >&2
+  echo "[error] install dependencies first, for example: scripts/install_dependencies.sh" >&2
+  exit 1
+fi
 
-        if ($1 == "MemTotal" || $1 == "MemFree" || $1 == "MemUsed") {
-          metric = $1;
-          for (i = 0; i < node_count; i++) {
-            values[metric, nodes[i]] = $(i + 2);
-          }
-        }
-      }
-      END {
-        for (i = 0; i < node_count; i++) {
-          node = nodes[i];
-          if (values["MemTotal", node] != "" && values["MemFree", node] != "" && values["MemUsed", node] != "") {
-            printf "%s,%s,%s,%s,%s\n",
-                   elapsed,
-                   node,
-                   values["MemTotal", node],
-                   values["MemFree", node],
-                   values["MemUsed", node];
-          }
-        }
-      }
-    '
-  )"
-
-  if [[ -z "${parsed_output}" ]]; then
-    echo "[warn] unable to parse numastat output at t=${elapsed_secs}s" >>"${NUMASTAT_LOG}"
-    printf '%s\n' "${numastat_output}" >>"${NUMASTAT_LOG}"
-    return
-  fi
-
-  printf '%s\n' "${parsed_output}" >>"${CSV_OUT}"
-}
-
-sample_numastat_loop() {
-  local start_epoch="$1"
-
-  echo "elapsed_sec,node,memtotal_mb,memfree_mb,memused_mb" >"${CSV_OUT}"
-
-  while kill -0 "${workload_pid}" 2>/dev/null; do
-    local now_epoch
-    local elapsed_secs
-    now_epoch="$(date +%s)"
-    elapsed_secs=$(( now_epoch - start_epoch ))
-    capture_numastat_sample "${elapsed_secs}"
-    sleep "${SAMPLE_INTERVAL_SECS}"
-  done
-
-  local final_epoch
-  local final_elapsed_secs
-  final_epoch="$(date +%s)"
-  final_elapsed_secs=$(( final_epoch - start_epoch ))
-  capture_numastat_sample "${final_elapsed_secs}"
+start_plotter() {
+  mkdir -p "${EXP_DIR}/.matplotlib" "${EXP_DIR}/.cache"
+  MPLCONFIGDIR="${EXP_DIR}/.matplotlib" \
+    XDG_CACHE_HOME="${EXP_DIR}/.cache" \
+    PYTHONPATH="${PLOTTER_SRC_DIR}${PYTHONPATH:+:${PYTHONPATH}}" \
+    python3 -m numa_mem_plot \
+      --proc "${WORKLOAD_PROC_NAME}" \
+      --interval "${SAMPLE_INTERVAL_SECS}" \
+      --duration "${PLOTTER_MAX_DURATION_SECS}" \
+      --csv "${CSV_OUT}" \
+      --out "${PLOT_OUT}" \
+      >"${PLOTTER_LOG}" 2>&1 &
+  sampler_pid=$!
 }
 
 write_params_yaml
@@ -192,6 +139,7 @@ echo "[info] logs: ${LOGDIR}"
 echo "[info] params: ${PARAMS_OUT}"
 echo "[info] running on NUMA node ${TARGET_CPU_NUMA_NODE}"
 echo "[info] num_elements=${NUM_ELEMENTS} num_lookups=${NUM_LOOKUPS}"
+echo "[info] plotting NUMA private memory via numa_mem_plot"
 
 readonly START_EPOCH_SECS="$(date +%s)"
 readonly START_EPOCH_NANOS="$(date +%s%N)"
@@ -200,8 +148,7 @@ readonly START_EPOCH_NANOS="$(date +%s%N)"
 workload_pid=$!
 echo "[info] workload pid=${workload_pid}"
 
-sample_numastat_loop "${START_EPOCH_SECS}" &
-sampler_pid=$!
+start_plotter
 
 if wait "${workload_pid}"; then
   workload_exit_code=0
@@ -234,7 +181,9 @@ cat >"${JSON_OUT}" <<EOF
   "elapsed_pretty": "${ELAPSED_SECS}.$(printf '%03d' "${ELAPSED_REMAINDER_MILLIS}")",
   "exit_code": ${workload_exit_code},
   "workload_log": "${WORKLOAD_LOG}",
-  "numa_csv": "${CSV_OUT}"
+  "numa_csv": "${CSV_OUT}",
+  "numa_plot": "${PLOT_OUT}",
+  "plotter_log": "${PLOTTER_LOG}"
 }
 EOF
 
@@ -242,6 +191,7 @@ echo "[done] experiment complete."
 echo "       Runtime: ${ELAPSED_SECS}.$(printf '%03d' "${ELAPSED_REMAINDER_MILLIS}") seconds"
 echo "       Timing JSON: ${JSON_OUT}"
 echo "       NUMA CSV: ${CSV_OUT}"
+echo "       NUMA Plot: ${PLOT_OUT}"
 echo "       Logs: ${LOGDIR}"
 
 if (( workload_exit_code != 0 )); then

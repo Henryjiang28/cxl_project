@@ -65,10 +65,12 @@ This 2.35× overhead falls squarely within the expected CXL latency range (typic
 
 ```bash
 cd ~/cxl_project
+git submodule update --init --recursive
 make all
 ```
 
 Requires: `gcc`, `libnuma` (`/usr/include/numa.h`, `/usr/lib64/libnuma.so`).
+The experiment scripts also expect Python 3, `matplotlib`, and initialized Git submodules.
 
 ---
 
