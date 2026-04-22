@@ -6,21 +6,21 @@ set -euo pipefail
 #  2) Let the baseline run without injected contention
 
 if [[ $# -ne 4 ]]; then
-  echo "Usage: $0 <migration_mode> <GiB> <percent_hot> <touch_cycles>" >&2
-  echo "  migration_mode must be 0 or 1" >&2
+  echo "Usage: $0 <migration_prob> <GiB> <percent_hot> <touch_cycles>" >&2
+  echo "  migration_prob must be an integer in [0,100]" >&2
   echo "  GiB must be a positive integer" >&2
   echo "  percent_hot must be an integer in [0,100]" >&2
   echo "  touch_cycles must be -1 or a non-negative integer" >&2
   exit 1
 fi
 
-readonly MIGRATION_MODE="$1"
+readonly MIGRATION_PROB="$1"
 readonly HOT_COLD_MEM_GIB="$2"
 readonly HOT_COLD_TOUCH_PERCENT="$3"
 readonly HOT_COLD_TOUCH_CYCLES="$4"
 
-if [[ "${MIGRATION_MODE}" != "0" && "${MIGRATION_MODE}" != "1" ]]; then
-  echo "[error] invalid migration_mode '${MIGRATION_MODE}'. Expected '0' or '1'." >&2
+if ! [[ "${MIGRATION_PROB}" =~ ^[0-9]+$ ]] || (( MIGRATION_PROB < 0 || MIGRATION_PROB > 100 )); then
+  echo "[error] invalid migration_prob '${MIGRATION_PROB}'. Expected an integer in [0,100]." >&2
   exit 1
 fi
 
@@ -83,7 +83,7 @@ timestamp: $(yaml_quote "${TIMESTAMP}")
 experiment_dir: $(yaml_quote "${EXP_DIR}")
 csv_out: $(yaml_quote "${CSV_OUT}")
 plot_out: $(yaml_quote "${PLOT_OUT}")
-migration_mode: $(yaml_quote "${MIGRATION_MODE}")
+migration_prob: ${MIGRATION_PROB}
 logdir: $(yaml_quote "${LOGDIR}")
 hot_cold_log: $(yaml_quote "${hc_log}")
 plotter_log: $(yaml_quote "${plotter_log}")
