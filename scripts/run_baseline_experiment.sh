@@ -5,17 +5,19 @@ set -euo pipefail
 #  1) Start hot_cold
 #  2) Let the baseline run without injected contention
 
-if [[ $# -ne 3 ]]; then
-  echo "Usage: $0 <migration_mode> <GiB> <percent_hot>" >&2
+if [[ $# -ne 4 ]]; then
+  echo "Usage: $0 <migration_mode> <GiB> <percent_hot> <touch_cycles>" >&2
   echo "  migration_mode must be 0 or 1" >&2
   echo "  GiB must be a positive integer" >&2
   echo "  percent_hot must be an integer in [0,100]" >&2
+  echo "  touch_cycles must be -1 or a non-negative integer" >&2
   exit 1
 fi
 
 readonly MIGRATION_MODE="$1"
 readonly HOT_COLD_MEM_GIB="$2"
 readonly HOT_COLD_TOUCH_PERCENT="$3"
+readonly HOT_COLD_TOUCH_CYCLES="$4"
 
 if [[ "${MIGRATION_MODE}" != "0" && "${MIGRATION_MODE}" != "1" ]]; then
   echo "[error] invalid migration_mode '${MIGRATION_MODE}'. Expected '0' or '1'." >&2
@@ -29,6 +31,11 @@ fi
 
 if ! [[ "${HOT_COLD_TOUCH_PERCENT}" =~ ^[0-9]+$ ]] || (( HOT_COLD_TOUCH_PERCENT < 0 || HOT_COLD_TOUCH_PERCENT > 100 )); then
   echo "[error] invalid percent_hot '${HOT_COLD_TOUCH_PERCENT}'. Expected an integer in [0,100]." >&2
+  exit 1
+fi
+
+if ! [[ "${HOT_COLD_TOUCH_CYCLES}" =~ ^-?[0-9]+$ ]] || (( HOT_COLD_TOUCH_CYCLES < -1 )); then
+  echo "[error] invalid touch_cycles '${HOT_COLD_TOUCH_CYCLES}'. Expected -1 or a non-negative integer." >&2
   exit 1
 fi
 
@@ -46,7 +53,7 @@ PARAMS_OUT="${EXP_DIR}/experimental_params.yaml"
 HOT_COLD_BIN="${HOT_COLD_BIN:-./workloads/hot_cold/hot_cold}"
 readonly HOT_COLD_MEM_MB=$(( HOT_COLD_MEM_GIB * 1024 ))
 SLOW_NUMA_NODE="${SLOW_NUMA_NODE:-1}"
-HOT_COLD_CMD="${HOT_COLD_CMD:-${HOT_COLD_BIN} ${HOT_COLD_MEM_MB} ${SLOW_NUMA_NODE} ${HOT_COLD_TOUCH_PERCENT}}"
+HOT_COLD_CMD="${HOT_COLD_CMD:-${HOT_COLD_BIN} ${HOT_COLD_MEM_MB} ${SLOW_NUMA_NODE} ${HOT_COLD_TOUCH_PERCENT} ${HOT_COLD_TOUCH_CYCLES}}"
 HOT_COLD_PROC_NAME="${HOT_COLD_PROC_NAME:-$(basename "${HOT_COLD_BIN}")}"
 
 BASELINE_DURATION="${BASELINE_DURATION:-120}"
@@ -84,6 +91,7 @@ hot_cold_mem_gib: ${HOT_COLD_MEM_GIB}
 hot_cold_mem_mb: ${HOT_COLD_MEM_MB}
 slow_numa_node: ${SLOW_NUMA_NODE}
 hot_cold_touch_percent: ${HOT_COLD_TOUCH_PERCENT}
+hot_cold_touch_cycles: ${HOT_COLD_TOUCH_CYCLES}
 hot_cold_proc_name: $(yaml_quote "${HOT_COLD_PROC_NAME}")
 hot_cold_cmd: $(yaml_quote "${HOT_COLD_CMD}")
 baseline_duration: ${BASELINE_DURATION}
