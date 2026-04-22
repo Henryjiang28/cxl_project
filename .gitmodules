@@ -5,3 +5,7 @@
 	path = tools/numa_mem_plot
 	url = https://github.com/LordDarkula/numa_mem_plot.git
 	branch = main
+[submodule "linux"]
+	path = linux
+	url = https://github.com/LordDarkula/linux.git
+	branch = prob-migration
