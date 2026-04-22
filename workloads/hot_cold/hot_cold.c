@@ -87,15 +87,21 @@ static void touch_range(char *buf, size_t bytes, size_t page) {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 4) {
-        fprintf(stderr, "Usage: %s <MiB_to_alloc> <alloc_node> <percent_hot>\n", argv[0]);
+    if (argc < 4 || argc > 5) {
+        fprintf(stderr, "Usage: %s <MiB_to_alloc> <alloc_node> <percent_hot> [touch_cycles]\n", argv[0]);
         fprintf(stderr, "Example: %s 32768 1 25\n", argv[0]);
+        fprintf(stderr, "Example: %s 32768 1 25 100\n", argv[0]);
         return 1;
     }
 
     long sizeMiB = atol(argv[1]);
     int alloc_node = atoi(argv[2]);
     int percent_hot = atoi(argv[3]);
+    long touch_cycles = -1;
+
+    if (argc == 5) {
+        touch_cycles = atol(argv[4]);
+    }
 
     if (sizeMiB <= 0) {
         fprintf(stderr, "MiB_to_alloc must be > 0\n");
@@ -103,6 +109,10 @@ int main(int argc, char **argv) {
     }
     if (percent_hot < 0 || percent_hot > 100) {
         fprintf(stderr, "percent_hot must be in [0,100]\n");
+        return 1;
+    }
+    if (touch_cycles < -1) {
+        fprintf(stderr, "touch_cycles must be -1 or >= 0\n");
         return 1;
     }
 
@@ -145,7 +155,11 @@ int main(int argc, char **argv) {
            percent_hot, (double)hot_bytes / (1024.0 * 1024.0 * 1024.0),
            100 - percent_hot, (double)(bytes - hot_bytes) / (1024.0 * 1024.0 * 1024.0));
 
-    printf("Looping: touching hot set\n");
+    if (touch_cycles == -1) {
+        printf("Looping: touching hot set indefinitely\n");
+    } else {
+        printf("Looping: touching hot set for %ld cycles\n", touch_cycles);
+    }
 
     time_t start = time(NULL);
     if (start == (time_t)-1) {
@@ -154,8 +168,18 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    while (1) {
-        touch_range(buf, hot_bytes, page);
-        usleep(HOT_TOUCH_SLEEP_US);
+    if (touch_cycles == -1) {
+        while (1) {
+            touch_range(buf, hot_bytes, page);
+            usleep(HOT_TOUCH_SLEEP_US);
+        }
+    } else {
+        for (long cycle = 0; cycle < touch_cycles; cycle++) {
+            touch_range(buf, hot_bytes, page);
+            usleep(HOT_TOUCH_SLEEP_US);
+        }
     }
+
+    free(buf);
+    return 0;
 }
