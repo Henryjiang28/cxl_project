@@ -1,0 +1,17 @@
+timestamp: "2026-04-22_19-49-56"
+experiment_dir: "experiments/numa_baseline_experiment-2026-04-22_19-49-56"
+csv_out: "experiments/numa_baseline_experiment-2026-04-22_19-49-56/memory_usage.csv"
+plot_out: "experiments/numa_baseline_experiment-2026-04-22_19-49-56/memory_usage.png"
+migration_prob: 50
+logdir: "./exp_logs_2026-04-22_19-49-56"
+hot_cold_log: "./exp_logs_2026-04-22_19-49-56/hot_cold.log"
+plotter_log: "./exp_logs_2026-04-22_19-49-56/numa_mem_plot.log"
+hot_cold_mem_gib: 16
+hot_cold_mem_mb: 16384
+slow_numa_node: 1
+hot_cold_touch_percent: 75
+hot_cold_touch_cycles: 500
+hot_cold_proc_name: "hot_cold"
+hot_cold_cmd: "./workloads/hot_cold/hot_cold 16384 1 75 500"
+baseline_duration: 120
+plotter_src_dir: "./tools/numa_mem_plot/src"
