@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 2 ]]; then
-  echo "Usage: $0 <GiB> <hundreds_of_lookups>" >&2
+if [[ $# -ne 3 ]]; then
+  echo "Usage: $0 <migration_prob> <GiB> <hundreds_of_lookups>" >&2
+  echo "  migration_prob must be an integer in [0,100]" >&2
   echo "  GiB must be a positive integer" >&2
   echo "  hundreds_of_lookups must be a non-negative integer" >&2
   exit 1
 fi
 
-readonly MEMORY_GIB="$1"
-readonly LOOKUP_HUNDREDS="$2"
+readonly MIGRATION_PROB="$1"
+readonly MEMORY_GIB="$2"
+readonly LOOKUP_HUNDREDS="$3"
+
+if ! [[ "${MIGRATION_PROB}" =~ ^[0-9]+$ ]] || (( MIGRATION_PROB < 0 || MIGRATION_PROB > 100 )); then
+  echo "[error] invalid migration_prob '${MIGRATION_PROB}'. Expected an integer in [0,100]." >&2
+  exit 1
+fi
 
 if ! [[ "${MEMORY_GIB}" =~ ^[0-9]+$ ]] || (( MEMORY_GIB == 0 )); then
   echo "[error] invalid GiB '${MEMORY_GIB}'. Expected a positive integer." >&2
@@ -63,6 +70,7 @@ experiment_dir: $(yaml_quote "${EXP_DIR}")
 numa_csv_out: $(yaml_quote "${CSV_OUT}")
 numa_plot_out: $(yaml_quote "${PLOT_OUT}")
 timing_json_out: $(yaml_quote "${JSON_OUT}")
+migration_prob: ${MIGRATION_PROB}
 target_cpu_numa_node: ${TARGET_CPU_NUMA_NODE}
 target_mem_numa_node: ${TARGET_MEM_NUMA_NODE}
 memory_gib: ${MEMORY_GIB}
