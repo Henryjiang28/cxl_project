@@ -1,0 +1,21 @@
+timestamp: "2026-04-23_00-02-12"
+experiment_dir: "experiments/mitosis_btree_experiment-2026-04-23_00-02-12"
+numa_csv_out: "experiments/mitosis_btree_experiment-2026-04-23_00-02-12/numa_memory_usage.csv"
+numa_plot_out: "experiments/mitosis_btree_experiment-2026-04-23_00-02-12/numa_memory_usage.png"
+timing_json_out: "experiments/mitosis_btree_experiment-2026-04-23_00-02-12/timing.json"
+migration_prob: 0
+target_cpu_numa_node: 0
+target_mem_numa_node: 1
+memory_gib: 16
+elements_per_gib: 8000000
+num_elements: 128000000
+lookup_hundreds: 50
+num_lookups: 5000
+sample_interval_secs: 1
+plotter_max_duration_secs: 86400
+workload_proc_name: "bench_btree_mt"
+plotter_src_dir: "./tools/numa_mem_plot/src"
+workload_bin: "./workloads/mitosis-workload-btree/bin/bench_btree_mt"
+workload_cmd: "./workloads/mitosis-workload-btree/bin/bench_btree_mt -p 0 -m {TARGET_MEM_NUMA_NODE -- -n 128000000 -l 5000}"
+workload_log: "./exp_logs_2026-04-23_00-02-12/bench_btree_mt.log"
+plotter_log: "./exp_logs_2026-04-23_00-02-12/numa_mem_plot.log"

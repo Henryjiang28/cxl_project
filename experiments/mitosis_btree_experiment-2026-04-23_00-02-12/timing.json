@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-04-23_00-02-12",
+  "target_cpu_numa_node": "0",
+  "target_mem_numa_node": "1",
+  "memory_gib": 16,
+  "elements_per_gib": 8000000,
+  "num_elements": 128000000,
+  "lookup_hundreds": 50,
+  "num_lookups": 5000,
+  "sample_interval_secs": 1,
+  "elapsed_seconds": 21,
+  "elapsed_milliseconds": 21866,
+  "elapsed_pretty": "21.866",
+  "exit_code": 0,
+  "workload_log": "./exp_logs_2026-04-23_00-02-12/bench_btree_mt.log",
+  "numa_csv": "experiments/mitosis_btree_experiment-2026-04-23_00-02-12/numa_memory_usage.csv",
+  "numa_plot": "experiments/mitosis_btree_experiment-2026-04-23_00-02-12/numa_memory_usage.png",
+  "plotter_log": "./exp_logs_2026-04-23_00-02-12/numa_mem_plot.log"
+}
